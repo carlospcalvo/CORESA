@@ -1,0 +1,50 @@
+//N° de folio
+@STORE1 = $[$253000596.0.NUMBER];
+//Total neto IVA 21% * 6% + 46%
+@STORE2 = SQL(SELECT REPLACE (CAST (T10."Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT SUM((T0."LineTotal")*0.06)/0.54 as "Total"	FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_21' AND T1."FolNumTo" = @STORE1)T10);
+//Total neto IVA 10,5% * 6% + 46%
+@STORE3 = SQL(SELECT REPLACE (CAST (T10."Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT SUM((T0."LineTotal")*0.06)/0.54 as "Total"	FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_10.5' AND T1."FolNumTo" = @STORE1)T10);
+
+IF(@STORE2 != 0 && @STORE3 != 0)
+BEGIN
+    Activate(2055);
+    Transfer($[$4.0.0]|$[$4.0.0]);
+    Transfer($[$14.0.0]|$[$14.0.0]);
+    Set($[$134.0.NUMBER]|@STORE1);
+    Set($[$16.0.0]|Basado en FC @STORE1. 6% desc.);
+
+    IF(@STORE2 != 0 && @STORE3 = 0)
+        BEGIN
+        //Seteo linea IVA 21%
+        Set($[$38.1.FIRST]|V00003);
+        Click($[$38.14.0.FIRST]);
+        Transfer(@STORE2|$[$38.14.0.FIRST]);
+        Set($[$38.15.NUMBER.FIRST]|46);
+        END
+    ELSEIF (@STORE2 != 0 && @STORE3 != 0)
+        BEGIN
+        //Seteo linea IVA 21%
+        Set($[$38.1.FIRST]|V00003);
+        Click($[$38.14.0.FIRST]); 
+        Transfer(@STORE2|$[$38.14.0.FIRST]);
+        Set($[$38.15.NUMBER.FIRST]|46);
+        //Seteo linea IVA 10,5%
+        Set($[$38.1.0.2]|V00003);
+        Set($[$38.14.0.2]|@STORE3);
+        Set($[$38.15.NUMBER.2]|46);
+        Set($[$38.160.0.2]|IVA_10.5);
+        END
+    ELSE
+        BEGIN
+        //Seteo linea IVA 10,5%
+        Set($[$38.1.FIRST]|V00003);
+        Click($[$38.14.0.FIRST]); 
+        Transfer(@STORE3|$[$38.14.0.FIRST]);
+        Set($[$38.15.NUMBER.FIRST]|46);
+        Set($[$38.160.0.2]|IVA_10.5);
+        END
+END
+
+@STORE1 = '';
+@STORE2 = '';
+@STORE3 = '';
