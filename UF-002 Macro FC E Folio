@@ -1,0 +1,6 @@
+/***** edita el numero de folio una vez creada la FC *****/
+Activate(1291); //abre el ultimo documento creado
+Activate(6053); //activa edicion numero de folio
+Set($[$253000596.0.NUMBER]|@store1); //copia numero de folio
+Set($[$253000597.0.NUMBER]|@store1); 
+Set($[$1.0.0]|Actualizar);
