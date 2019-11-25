@@ -1,0 +1,34 @@
+// FC a copiar
+@STORE1 = SQL(SELECT DISTINCT(T10."FolioCORESA" + T10."Nro Macro") FROM (SELECT T0."FolNumTo" as "FolioCORESA", '0' as "Nro Macro" FROM "CORESA_SRL"."OINV" T0 WHERE T0."CANCELED" = 'N' AND T0."DiscPrcnt" <> 0 AND T0."DocDate" = CURRENT_DATE AND T0."FolNumTo" NOT IN (SELECT TOP 100 (T0."FolNumTo") FROM "MACRO".OINV T0 ORDER BY T0."FolNumTo" DESC) UNION ALL SELECT '0' as "FolioCORESA", T0."FolNumTo" as "Nro Macro" FROM "MACRO"."OINV" T0 WHERE T0."CANCELED" = 'N' AND T0."DocDate" = CURRENT_DATE AND T0."FolNumTo" NOT IN (SELECT TOP 100 (T0."FolNumTo") FROM OINV T0 ORDER BY T0."FolNumTo" DESC))T10 );
+// desceunto en pesos
+@STORE2 = SQL(SELECT DISTINCT REPLACE( CAST ("DiscSum" AS VARCHAR), '.', ',') FROM "CORESA_SRL".OINV WHERE "DocDate" = CURRENT_DATE AND "DiscPrcnt" <> 0 AND "CANCELED" = 'N' AND "FolNumTo" = @STORE1); //(SELECT TOP 1(T10."FolioCORESA" + T10."Nro Macro") FROM(SELECT T0."FolNumTo" as "FolioCORESA", '0' as "Nro Macro" FROM "CORESA_SRL"."OINV" T0 WHERE T0."CANCELED" = 'N' AND T0."DiscPrcnt" <> 0 AND T0."DocDate" = CURRENT_DATE UNION ALL SELECT '0' as "FolioCORESA", T0."FolNumTo" as "Nro Macro" FROM "MACRO"."OINV" T0 WHERE T0."CANCELED" = 'N' AND T0."DocDate" = CURRENT_DATE) T10));
+// porcentaje de descuento
+@STORE3 = SQL(SELECT DISTINCT TO_INTEGER ("DiscPrcnt") FROM "CORESA_SRL".OINV WHERE "DocDate" = CURRENT_DATE AND "DiscPrcnt" <> 0 AND "CANCELED" = 'N' AND "FolNumTo" = @STORE1);
+// numero de folio de la ultima factura
+@STORE4 = SQL(SELECT TOP 1 (T0."FolNumTo") FROM OINV T0 ORDER BY T0."FolNumTo" DESC);
+
+IF @STORE1 != @STORE4
+    BEGIN
+        Activate(2053); //abre FC
+        MultiSetFromSql($[$4.0.0]|$[$10.0.DATE]|$[$12.0.DATE]|SELECT "CardCode", "DocDate", "DocDate" FROM "CORESA_SRL".OINV WHERE "DocDate" = CURRENT_DATE AND "DiscPrcnt" <> 0 AND "CANCELED" = 'N' AND "FolNumTo" = @STORE1);
+        //la linea de arriba setea cliente, fecha y fecha de vencimiento
+        Set($[$253000593.0.0]|0099);
+        Set($[$253000594.0.0]|E);    
+
+        Set($[$38.1.0]|V00001); //setea el itemcode
+        Click($[$38.14.0]); 
+        Transfer(@STORE2|$[$38.14.0.FIRST]);
+        //la linea de arriba setea precio
+        Set($[$16.0.0]|@STORE3% correspondiente a FC @STORE1);
+
+       // AutoPressNextPopup($[$1.0.0]); //clickea "crear"
+       // Set($[$1.0.0]|Crear);
+       // Activate();
+        
+        UF(UF-002); //setea numero de folio       
+    END
+
+@STORE1 = '';
+@STORE2 = '';
+@STORE3 = '';
+@STORE4 = '';
