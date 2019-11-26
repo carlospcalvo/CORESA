@@ -5,7 +5,7 @@
 //Total neto IVA 10,5% * 6% + 46%
 @STORE3 = SQL(SELECT REPLACE (CAST (T10."Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT SUM((T0."LineTotal")*0.06)/0.54 as "Total"	FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_10.5' AND T1."FolNumTo" = @STORE1)T10);
 
-IF(@STORE2 != '' && @STORE3 != '')
+IF(@STORE2 != '' || @STORE3 != '')
 BEGIN
     Activate(2055);
     Transfer($[$4.0.0]|$[$4.0.0]);
