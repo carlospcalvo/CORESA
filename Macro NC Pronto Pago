@@ -5,7 +5,7 @@
 //Total neto IVA 10,5% * 6% + 46%
 @STORE3 = SQL(SELECT REPLACE (CAST (T10."Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT SUM((T0."LineTotal")*0.06)/0.54 as "Total"	FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_10.5' AND T1."FolNumTo" = @STORE1)T10);
 
-IF(@STORE2 != 0 && @STORE3 != 0)
+IF(@STORE2 != '' && @STORE3 != '')
 BEGIN
     Activate(2055);
     Transfer($[$4.0.0]|$[$4.0.0]);
@@ -13,7 +13,7 @@ BEGIN
     Set($[$134.0.NUMBER]|@STORE1);
     Set($[$16.0.0]|Basado en FC @STORE1. 6% desc.);
 
-    IF(@STORE2 != 0 && @STORE3 = 0)
+    IF(@STORE2 != '' && @STORE3 = '')
         BEGIN
         //Seteo linea IVA 21%
         Set($[$38.1.FIRST]|V00003);
@@ -21,7 +21,7 @@ BEGIN
         Transfer(@STORE2|$[$38.14.0.FIRST]);
         Set($[$38.15.NUMBER.FIRST]|46);
         END
-    ELSEIF (@STORE2 != 0 && @STORE3 != 0)
+    ELSEIF (@STORE2 != '' && @STORE3 != '')
         BEGIN
         //Seteo linea IVA 21%
         Set($[$38.1.FIRST]|V00003);
