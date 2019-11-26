@@ -1,9 +1,9 @@
 //N° de folio
 @STORE1 = $[$253000596.0.NUMBER];
 //Total neto IVA 21% * 6% + 46%
-@STORE2 = SQL(SELECT REPLACE (CAST (T10."Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT SUM((T0."LineTotal")*0.06)/0.54 as "Total"	FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_21' AND T1."FolNumTo" = @STORE1)T10);
+@STORE2 = SQL(SELECT REPLACE (CAST ("Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT TO_DECIMAL(T5."Total", 10, 3) as "Total" FROM (SELECT SUM((((T0."LineTotal")*(1-(T1."DiscPrcnt")/100))*0.06)/0.54) as "Total" FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_21' AND T1."FolNumTo" = @STORE1)T5));
 //Total neto IVA 10,5% * 6% + 46%
-@STORE3 = SQL(SELECT REPLACE (CAST (T10."Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT SUM((T0."LineTotal")*0.06)/0.54 as "Total"	FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_10.5' AND T1."FolNumTo" = @STORE1)T10);
+@STORE3 = SQL(SELECT REPLACE (CAST ("Total" AS VARCHAR), '.', ',') as "Total" FROM (SELECT TO_DECIMAL(T5."Total", 10, 3) as "Total" FROM (SELECT SUM((((T0."LineTotal")*(1-(T1."DiscPrcnt")/100))*0.06)/0.54) as "Total" FROM INV1 T0 INNER JOIN OINV T1 ON T0."DocEntry" = T1."DocEntry" WHERE T0."TaxCode" = 'IVA_10.5' AND T1."FolNumTo" = @STORE1)T5));
 
 IF(@STORE2 != '' || @STORE3 != '')
 BEGIN
