@@ -1,0 +1,33 @@
+UF(UF-003);
+Activate();
+UF(UF-017);
+
+################################################################ UF-003 ##################################################################
+
+Set($[$10000329.0.0]|Nota de crédito de clientes); //abre nota de credito desde "Copiar a"
+Activate();
+Set($[$253000593.0.0]|0006); //POI = 0006
+Set($[$134.0.NUMBER]|1); //Finanzas --> Numero de pedido = 1
+
+################################################################ UF-017 ##################################################################
+
+/************************Condición SQL************************/
+SELECT CASE (SELECT "WhsCode" FROM RDN1 WHERE "DocEntry" = $[$38.45.0] AND "LineNum" = $[$38.46.0]) --Selecciona el almacén de las líneas de la devolución 
+WHEN 'NOGTIA' THEN 'REMOVE' --si son NOGTIA elimina las líneas
+WHEN 'DEVOLUC' THEN 'HIST' --si son devolucion o inconsistencias trae precio histórico si el campo "Precio Sugerido" no está vacío o en 0
+WHEN 'INCON' THEN 'HIST'
+END FROM DUMMY
+
+/************************ 'REMOVE' (UF-009)************************/
+Focus($[$38.1.0]);
+Activate(1293); //elimina la línea (ídem CTRL+K)
+
+/************************ 'HIST' (UF-006) ************************/
+Focus($[$38.1.0]); //SELECCIONA LA LINEA
+IF $[$38.24.0] = 'DEVOLUC' || $[$38.24.0] = 'INCON'
+    BEGIN
+        IF $[$38.U_Descuentoportal.0] > 0 
+            BEGIN 
+            Set($[$38.14.0]|$[$38.U_Descuentoportal.0]);//copia precio historico
+            END
+    END
