@@ -1,0 +1,359 @@
+SELECT
+T0."ItemCode" as "Producto",
+T0."ItemName" as "Descripción", 
+T1."ItmsGrpNam" as "Familia",
+(SELECT TO_INTEGER(TY."BaseQty")
+FROM OITM TW  
+INNER JOIN OUGP TX ON TW."UgpEntry" = TX."UgpEntry" 
+INNER JOIN UGP1 TY ON TX."UgpEntry" = TY."UgpEntry" 
+INNER JOIN OUOM TZ ON TW."PUoMEntry" = TZ."UomEntry" 
+WHERE TY."UomEntry"= '2' AND  TW."ItemCode" = T0."ItemCode")
+AS "CAJA MASTER",
+
+T0."MinLevel" AS "STOCK MINIMO",
+
+CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" = 'RUTHER'
+AND T0."ItemCode" = TA."ItemCode")  AS INT) as "STOCK RUTHER",
+
+CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" = 'BEAUCHEF'
+AND T0."ItemCode" = TA."ItemCode")  AS INT) as "STOCK BEAUCHEF",
+
+CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" = 'ADUANA'
+AND T0."ItemCode" = TA."ItemCode")  AS INT) as "STOCK ADUANA",
+
+T0."IsCommited" as "COMPROMETIDO",
+
+CASE WHEN T0."MinLevel" <> '0' THEN 
+TO_DECIMAL(((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")- T0."IsCommited")/ (T0."MinLevel"/3), 10, 1)
+WHEN T0."MinLevel" = '0' THEN '0' END AS "MESES DE STOCK SIN FISCAL",
+--11.03 MESES DE STOCK SIN FISCAL OK
+
+(SELECT CAST(COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)AS INT)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y'
+)AS "STOCK EN DEP FISCAL",
+
+CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  AS INT)+
+(SELECT CAST(COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)AS INT)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y'
+) as "RUTHER+ BEAUCHEF+ ADUANA+ FISCAL",
+--Nombre hasta el 30.01 cambio pedido por Jose "STOCK DEPOSITOS"
+
+CAST(((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  +
+(SELECT COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y'
+)-T0."IsCommited") AS INT) as "RUTHER+ BEAUCHEF+ ADUANA+ FISCAL-COMPROMETIDO",
+
+CASE WHEN T0."MinLevel" <> '0' THEN 
+TO_DECIMAL((((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  +
+
+(SELECT COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y')
+
+--COALESCE(SUM(T4."OpenCreQty"), 0) 
+-T0."IsCommited") / (T0."MinLevel"/3) ), 10, 1)
+WHEN T0."MinLevel" = '0' THEN '0' END AS "MESES DE STOCK",
+--06.03 //C.C.// calculo corregido, chequeado por Jose
+
+(SELECT TO_INTEGER(COALESCE(sum(TG."OpenCreQty"),0))
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'N'
+)AS "EMBARCADO FR",
+
+
+(SELECT MIN(TE."U_FECHA_ETA")
+FROM OPCH TE INNER JOIN PCH1 TF ON TE."DocEntry" = TF."DocEntry"
+WHERE TF."OpenCreQty" <> 0 AND TE."U_FECHA_ETA" IS NOT NULL
+and T0."ItemCode" = TF."ItemCode" )AS "Fecha ETA EMBARCADO FR",
+
+--Eliminado AS 30.01 pedido x Jose CAST(COALESCE(SUM(T4."OpenCreQty"),0) AS INT) AS "EMBARCADO FR + FISCAL",
+
+CASE WHEN T0."MinLevel" <> '0' THEN
+TO_DECIMAL((((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  +
+
+(SELECT TO_INTEGER(COALESCE(sum(TG."OpenCreQty"),0))
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'N')+
+
+(SELECT COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y')
+
+--COALESCE(SUM(T4."OpenCreQty"), 0)
+-T0."IsCommited") / (T0."MinLevel"/3) ), 10, 1)
+WHEN T0."MinLevel" = '0' THEN '0' END AS "MESES STOCK EMB FR + STK DEPOs",
+--AS Nombre hasta 30.01 pedido por Jose "MESES STOCK EMB FR + FISCAL + STK DEPOs"
+--06.03 //C.C.// calculo corregido, chequeado por Jose
+
+CAST(COALESCE(SUM(T2."OpenQty"),0) AS INT) AS "OC",
+
+(SELECT MIN(TE."U_FECHA_EDT")
+FROM OPCH TE INNER JOIN PCH1 TF ON TE."DocEntry" = TF."DocEntry"
+WHERE TF."OpenCreQty" <> 0 AND TE."U_FECHA_EDT" IS NOT NULL
+and T0."ItemCode" = TF."ItemCode" )AS "Fecha ETD OC",
+
+CASE WHEN T0."MinLevel" <> '0' THEN 
+TO_DECIMAL(((
+--STOCK
+(SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  +
+--PEDIDOS (OC)
+COALESCE(SUM(T2."OpenQty"),0) +
+--EMB FR
+(SELECT TO_INTEGER(COALESCE(sum(TG."OpenCreQty"),0))
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'N')+
+--FISCAL
+(SELECT COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y')
+--COMPROMETIDO
+-T0."IsCommited") / (T0."MinLevel"/3) ), 10, 1)
+WHEN T0."MinLevel" = '0' THEN '0' END AS " MESES STOCK EMB FR + STK DEPOs + OC",
+--AS Nombre hasta 30.01 pedido por Jose" MESES STOCK EMB FR + FISCAL + STK DEPOs + OC"
+
+(SELECT CAST(COALESCE(SUM(TS."OpenQty"),0) AS INT)FROM PRQ1 TS
+INNER JOIN OPRQ TT ON TS."DocEntry" = TT."DocEntry"  
+WHERE TS."ItemCode" = T0."ItemCode"
+AND TT."DocStatus" = 'O')AS "SP",
+--27/2 //C.C.// se agregó filtro para pedidos cerrados 
+
+CASE WHEN T0."MinLevel" <> '0' THEN 
+ TO_DECIMAL(((
+--STOCK
+(SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  +
+--OC
+COALESCE(SUM(T2."OpenQty"),0) +
+--EMB FR
+(SELECT TO_INTEGER(COALESCE(sum(TG."OpenCreQty"),0))
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'N')+
+--FISCAL
+(SELECT COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y')
+--Comprometido
+-T0."IsCommited" +
+--SP (SOLICITUD COMPRA)
+(SELECT COALESCE(SUM(TS."OpenQty"),0) FROM PRQ1 TS 
+	INNER JOIN OPRQ TT ON TS."DocEntry" = TT."DocEntry"
+	WHERE TS."ItemCode" = T0."ItemCode" AND TT."DocStatus" = 'O')
+) / (T0."MinLevel"/3) ), 10, 1)
+WHEN T0."MinLevel" = '0' THEN '0' END AS "MESES STOCK EMB FR + STK DEPOs + OC + SP",
+--AS Nombre hasta 30.01 pedido por Jose "MESES STOCK EMB FR + FISCAL + STK DEPOs + OC + SP"
+
+CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  AS INT) +
+CAST(COALESCE(SUM(T4."OpenCreQty"),0) AS INT) +
+CAST(COALESCE(SUM(T2."OpenQty"),0) AS INT) - 
+TO_INTEGER(T0."IsCommited")
+AS "TOTAL STOCK SIN SP", 
+
+CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  AS INT) +
+CAST(COALESCE(SUM(T4."OpenCreQty"),0) AS INT) +
+CAST(COALESCE(SUM(T2."OpenQty"),0) AS INT) +
+(SELECT CAST(COALESCE(SUM(TS."OpenQty"),0) AS INT)FROM PRQ1 TS 
+WHERE TS."ItemCode" = T0."ItemCode") -
+TO_INTEGER(T0."IsCommited")
+AS "TOTAL STOCK CON SP", 
+/*
+CAST((SELECT SUM(TB."OnHand") FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")+
+(SELECT CAST(COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)AS INT)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y'
+)-
+T0."IsCommited" +
+COALESCE(SUM(T2."OpenQty"),0)+
+COALESCE(SUM(T4."OpenCreQty"),0)-
+T0."MinLevel" AS INT)as "DISPONIBLE",
+
+CAST((SELECT SUM(TB."OnHand") FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")+
+(SELECT CAST(COALESCE(sum(TG."OpenQty"-TG."ReleasQtty"),0)AS INT)
+FROM PCH1 TG INNER JOIN OPCH TH ON TG."DocEntry" = TH."DocEntry" 
+WHERE T0."ItemCode" = TG."ItemCode" and TH."U_DEPO_FISCAL" = 'Y'
+)-
+T0."IsCommited" +
+COALESCE(SUM(T2."OpenQty"),0)+
+(SELECT CAST(COALESCE(SUM(TS."OpenQty"),0) AS INT)FROM PRQ1 TS 
+WHERE TS."ItemCode" = T0."ItemCode")+
+COALESCE(SUM(T4."OpenCreQty"),0)-
+T0."MinLevel" AS INT) AS "DISPONIBLE con SP",
+*/
+(SELECT MAX(TC."DocNum") from POR1 TB INNER JOIN OPOR TC ON TB."DocEntry" = TC."DocEntry"
+WHERE TB."ItemCode" = T0."ItemCode"
+AND TB."Price" = (SELECT MAX(TA."Price") from POR1 TA 
+WHERE TA."ItemCode" = T0."ItemCode"))
+AS "Ultima OC (de ult precio)", 
+
+CASE WHEN  T0."MinLevel" <> '0' THEN 
+((CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  AS INT) +
+CAST(COALESCE(SUM(T4."OpenCreQty"),0) AS INT) +
+CAST(COALESCE(SUM(T2."OpenQty"),0) AS INT) - T0."MinLevel" )/ T0."MinLevel" ) * 100
+WHEN T0."MinLevel" = '0' THEN '0' END  
+AS "% Var. Stock vs Stock min.",
+
+CAST((SELECT 
+(SUM(TC."Quantity")/6)*3   
+FROM INV1 TC
+LEFT JOIN OITM TD ON TC."ItemCode" = TD."ItemCode"
+WHERE TC."DocDate" >= (ADD_DAYS(CURRENT_DATE, -180)) AND TD."InvntItem" = 'Y' and TD."MinLevel" <>0
+AND TD."ItemCode" = T0."ItemCode") AS INT) AS "Stock min. SAP sug." ,
+
+(SELECT 
+((((SUM(TE."Quantity")/6)*3- TF."MinLevel")/TF."MinLevel")* 100)
+FROM INV1 TE
+LEFT JOIN OITM TF ON TE."ItemCode" = TF."ItemCode"
+WHERE TE."DocDate" >= (ADD_DAYS(CURRENT_DATE, -180)) 
+AND TF."InvntItem" = 'Y' and TF."MinLevel" <>0
+AND TF."ItemCode" = T0."ItemCode"
+GROUP BY TF."MinLevel") as "% Var. Stock min. SAP vs Real",
+
+CAST((SELECT 
+(SELECT (MAX(BB."Price"))
+FROM POR1 BB
+WHERE BB."ItemCode"= AA."ItemCode" 
+AND BB."DocDate"= MAX(AA."DocDate")) 
+FROM POR1 AA
+INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+WHERE AA."Rate" <> 0 
+AND AA."ItemCode" = T0."ItemCode")AS DECIMAL (8,3)) as "Precio UC. USD",
+
+
+(SELECT 
+	(SELECT (MAX(BA."CardName"))
+		FROM OPOR BA
+		INNER JOIN POR1 BB ON BA."DocEntry" = BB."DocEntry"  
+		WHERE BB."ItemCode"= AA."ItemCode" 
+		AND BB."DocDate"= MAX(AA."DocDate")) 
+	FROM POR1 AA
+	INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+	WHERE AA."Rate" <> 0 
+	AND AA."ItemCode" = T0."ItemCode") as "Proveedor UC.",
+--14.04//C.C.// CAMPO AGREGADO A PEDIDO DE SANTI
+
+CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  AS INT) * (SELECT 
+(SELECT MAX(BB."Price") 
+FROM POR1 BB
+WHERE BB."ItemCode"= AA."ItemCode" 
+AND BB."DocDate"= MAX(AA."DocDate")) 
+FROM POR1 AA
+INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+WHERE AA."Rate" <> 0 
+AND AA."ItemCode" = T0."ItemCode")as "USD STOCK DEPOSITOS",
+
+CAST(COALESCE(SUM(T4."OpenCreQty"),0) AS INT)* (SELECT 
+(SELECT MAX(BB."Price") 
+FROM POR1 BB
+WHERE BB."ItemCode"= AA."ItemCode" 
+AND BB."DocDate"= MAX(AA."DocDate")) 
+FROM POR1 AA
+INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+WHERE AA."Rate" <> 0 
+AND AA."ItemCode" = T0."ItemCode") AS "USD EMBARCADO",
+
+CAST(COALESCE(SUM(T2."OpenQty"),0) AS INT)* (SELECT 
+(SELECT MAX(BB."Price") 
+FROM POR1 BB
+WHERE BB."ItemCode"= AA."ItemCode" 
+AND BB."DocDate"= MAX(AA."DocDate")) 
+FROM POR1 AA
+INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+WHERE AA."Rate" <> 0 
+AND AA."ItemCode" = T0."ItemCode") AS "USD OC",
+
+(SELECT CAST(COALESCE(SUM(TS."OpenQty"),0) AS INT)FROM PRQ1 TS 
+WHERE TS."ItemCode" = T0."ItemCode")*(SELECT 
+(SELECT MAX(BB."Price") 
+FROM POR1 BB
+WHERE BB."ItemCode"= AA."ItemCode" 
+AND BB."DocDate"= MAX(AA."DocDate")) 
+FROM POR1 AA
+INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+WHERE AA."Rate" <> 0 
+AND AA."ItemCode" = T0."ItemCode")
+AS "USD SP",
+
+(CAST((SELECT COALESCE(SUM(TB."OnHand"),0) FROM OITM TA
+INNER JOIN OITW TB ON TA."ItemCode" = TB."ItemCode" and TB."WhsCode" IN ('ADUANA', 'BEAUCHEF', 'RUTHER')
+AND T0."ItemCode" = TA."ItemCode")  AS INT) +
+CAST(COALESCE(SUM(T4."OpenCreQty"),0) AS INT) +
+CAST(COALESCE(SUM(T2."OpenQty"),0) AS INT) )
+* (SELECT 
+(SELECT MAX(BB."Price") 
+FROM POR1 BB
+WHERE BB."ItemCode"= AA."ItemCode" 
+AND BB."DocDate"= MAX(AA."DocDate")) 
+FROM POR1 AA
+INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+WHERE AA."Rate" <> 0 
+AND AA."ItemCode" = T0."ItemCode")AS "USD TOTAL STOCK", 
+
+T0."MinLevel" * (SELECT 
+(SELECT MAX(BB."Price") 
+FROM POR1 BB
+WHERE BB."ItemCode"= AA."ItemCode" 
+AND BB."DocDate"= MAX(AA."DocDate")) 
+FROM POR1 AA
+INNER JOIN OITM AB ON AA."ItemCode" = AB."ItemCode"
+WHERE AA."Rate" <> 0 
+AND AA."ItemCode" = T0."ItemCode")AS "USD STOCK MINIMO", 
+
+T6."TotalTax" as "%P.Arancelaria",
+
+(SELECT  coalesce(min(TT."U_INCREMENTO_FOB"),0)
+FROM IPF1 TT 
+INNER JOIN OPDN TY ON TT."BaseEntry" = TY."DocEntry" and TY."U_TIPOTRANSP" = 'MARITIMO'
+where T0."ItemCode" = TT."ItemCode") as "%min.Inc.FOB",
+(SELECT 
+coalesce(sum(TT."U_INCREMENTO_FOB")/COUNT(TT."U_INCREMENTO_FOB"),0) 
+FROM IPF1 TT 
+INNER JOIN OPDN TY ON TT."BaseEntry" = TY."DocEntry" and TY."U_TIPOTRANSP" = 'MARITIMO'
+where T0."ItemCode" = TT."ItemCode"
+) AS "$prom.Inc.FOB"
+
+FROM OITM T0
+LEFT JOIN OITB T1 ON T0."ItmsGrpCod" = T1."ItmsGrpCod"
+LEFT JOIN POR1 T2 ON T0."ItemCode" = T2."ItemCode"
+left JOIN OPOR T3 ON T2."DocEntry" = T3."DocEntry" and T3."CANCELED" = 'N' 
+LEFT JOIN PCH1 T4 ON T3."DocEntry" = T4."BaseEntry" and T2."LineNum" = T4."BaseLine" 
+--AND (T4."Quantity" IS NULL OR (T4."OpenCreQty" = T4."Quantity"))
+AND (T2."OpenQty" <> '0' OR T4."OpenQty" <> '0') 
+LEFT JOIN OPCH T5 ON T5."DocEntry" = T4."DocEntry" AND T4."DocDate" > '20190307'
+LEFT JOIN OARG T6 ON T0."CstGrpCode" = T6."CstGrpCode"
+LEFT JOIN PDN1 T7 ON T4."DocEntry" = T7."BaseEntry" AND T4."LineNum" = T7."BaseLine"
+LEFT JOIN OPDN T8 ON T7."DocEntry" = T8."DocEntry"
+
+WHERE T0."InvntItem" = 'Y' AND T0."frozenFor" = 'N' 
+--AND T0."ItemCode" = 'SL-50W-CW'
+GROUP BY T0."ItemCode", T0."ItemName", T1."ItmsGrpNam",T0."MinLevel",T0."OnHand",T0."IsCommited",T6."TotalTax"
+ORDER BY T0."ItemName"
