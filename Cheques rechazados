@@ -1,0 +1,45 @@
+ClearAllStoreValues();
+
+@STORE1 = $[$32.0.0];//cuenta
+--IF(@STORE1 = '')
+  --  BEGIN
+    --MessageBox(El cheque no tiene cuenta asignada);
+    --END
+@STORE2 = $[$28.0.0];//Numero
+@STORE4 = $[$10.0.0];
+--@STORE3 = SQL(SELECT "CheckSum" FROM OCHH WHERE "CheckNum" = CAST(@STORE2 AS DECIMAL) AND "AcctNum" = CAST(@STORE1 AS DECIMAL)); //monto (int)
+--@STORE4 = SQL(SELECT REPLACE(CAST("CheckSum" AS VARCHAR), '.', ',')FROM OCHH WHERE "CheckNum" = CAST(@STORE2 AS DECIMAL) AND "AcctNum" = CAST(@STORE1 AS DECIMAL));//monto (string)
+--@STORE5 = SQL(SELECT T1."ZipCode" FROM OCHH T0 INNER JOIN OCRD T1 ON T0."CardCode" = T1."CardCode" WHERE T0."CheckNum" = CAST(@STORE2 AS DECIMAL) AND T0."CheckSum" = CAST(@STORE3 AS DECIMAL(15,3)));//CP
+--@STORE6 = SQL(SELECT CONCAT("CheckNum", "AcctNum") FROM OCHH WHERE "CheckNum" = CAST(@STORE2 AS DECIMAL) AND "AcctNum" = CAST(@STORE1 AS DECIMAL));//N comprobante
+--@STORE7 = SQL(SELECT "U_NroCompEsp" FROM OINV WHERE "DocSubType" = 'DN' AND "U_NroCompEsp" = CAST(@STORE6 AS DECIMAL));
+
+//IF(@STORE7 = '')
+  //  BEGIN
+    Activate(2064);
+    Transfer($[$12.0.0]|$[$4.0.0]);
+
+    Set($[$20.0.NUMBER]|NOTA DE DEBITO);
+
+    
+    Set($[$38.1.0]|V00008);
+ --   Set($[$38.3.0]|CHEQUE RECHAZADO @STORE2);
+    Set($[$38.14.0.1]|@STORE4);
+    Set($[$38.1.0]|V00009);
+--    Set($[$20.0.NUMBER]|NOTA DE DEBITO)
+--    IF(@STORE5 < 2000)
+--        BEGIN
+        Set($[$38.14.0.2]|800);
+--        END
+--    ELSE
+--        BEGIN
+--        Set($[$38.14.0.2]|1200);
+--        END
+
+--    Set($[$16.0.0]|Cheque n° @STORE2.);
+--    END
+--ELSE
+--    BEGIN
+--    MessageBox(Ya existe una Nota de Débito creada en base al cheque n°@STORE2);
+ //   END
+
+ClearAllStoreValues();
