@@ -1,0 +1,55 @@
+ClearAllStoreValues();
+
+//N° de folio 
+@STORE1 = $[$253000596.0.NUMBER];
+//N° interno FC (hay n° de folio duplicados) 
+@STORE2 = $[$8.0.NUMBER];
+//Diferencia ARS
+@STORE3 = SQL(SELECT REPLACE (CAST ("Diferencia" AS VARCHAR), '.', ',') as "Diferencia" FROM (SELECT TO_DECIMAL(SUM(((T1."LineTotal"/T1."Rate")*(SELECT "Rate" FROM ORTT WHERE "RateDate" = CURRENT_DATE)) - T1."LineTotal")) as "Diferencia" FROM OINV T0 INNER JOIN INV1 T1 ON T0."DocEntry" = T1."DocEntry" INNER JOIN ORTT T2 ON T0."DocDate" = T2."RateDate" WHERE T0."DocNum" = @STORE2));
+//Si existe el n° de pedido (ImportEnt), lo guarda en la variable
+@STORE4 = SQL(SELECT "ImportEnt" FROM OINV WHERE "ImportEnt" = @STORE1 AND "DocSubType" = 'DN');
+
+//Monto FC
+@STORE6 = SQL(SELECT "DocTotal" FROM OINV WHERE "DocNum" = @STORE2);
+//Monto pago FC
+@STORE7 = SQL(SELECT "PaidToDate" FROM OINV WHERE "DocNum" = @STORE2);
+//Saldo FC
+@STORE8 =(@STORE6 - @STORE7);
+
+IF(@STORE4 != '')
+    BEGIN
+        Messagebox(Ya existe una Nota de débito por diferencia de tipo de cambio en base a esta factura.);
+        Activate(2064);
+        Activate(1281);
+        Set($[$134.0.NUMBER]|@STORE1);
+        Set($[$1.0.0]|Buscar);
+    END
+ELSE
+    BEGIN
+        IF((@STORE3 != '' && @STORE3 != 0))// || (@STORE3 != '' && @STORE3 != 0))
+            BEGIN
+                IF(@STORE8 <= 0)
+                    BEGIN
+                        //abre nd directamente
+                        Activate(2064);
+                        Transfer($[$4.0.0]|$[$4.0.0]);
+                    END
+                ELSE
+                    BEGIN
+                        Set($[$10000329.0.0]|Nota de débito de clientes); //abre nc desde "Copiar a" si hay saldo abierto
+                        Activate();
+                        UF(UF-028);
+                    END
+             
+                //Set info cabezal
+                Set($[$134.0.NUMBER]|@STORE1);
+                Set($[$16.0.0]|Basado en FC @STORE1.);
+                //Set info lineas
+                Set($[$38.1.FIRST]|V00005);
+                Click($[$38.14.0.FIRST]); 
+                Transfer(@STORE3|$[$38.14.0.FIRST]);
+                //Set($[$38.15.NUMBER.FIRST]|46);
+                //Set($[$38.24.0.FIRST]|OFICINA);
+            END
+    END
+ClearAllStoreValues();
