@@ -1,0 +1,185 @@
+SELECT VENTAS."Mes", VENTAS."Marca",-- VENTAS."SKU", 
+SUM(COMPRAS."Cantidad") as "Compras",
+SUM(VENTAS."Cantidad") as "Ventas"
+--VENTAS
+FROM (
+    --Facturas
+    SELECT   
+    TO_VARCHAR(T0."DocDate",'YYYY-MM') as "Mes",
+    CASE WHEN T2."QryGroup8" = 'Y'
+    THEN 'KING'
+    WHEN T2."QryGroup4" = 'Y'
+    THEN 'CHINT'
+    WHEN T2."QryGroup2" = 'Y'
+    THEN 'INTECK'
+    WHEN T2."QryGroup1" = 'Y'
+    THEN 'MACROLED'
+    WHEN T2."QryGroup3" = 'Y'
+    THEN 'POWERSWITCH'
+    ELSE ''
+    END AS "Marca",
+    T3."ItmsGrpNam" as "Familia 2",
+    --T2."ItemCode" as "SKU",
+    SUM(T1."Quantity") as "Cantidad"
+
+    FROM OINV T0   
+    INNER JOIN INV1 T1 ON T0."DocEntry" = T1."DocEntry"  
+    INNER JOIN OITM T2 ON T1."ItemCode" = T2."ItemCode" 
+    INNER JOIN OITB T3 ON T2."ItmsGrpCod" = T3."ItmsGrpCod"
+
+    WHERE  
+    T0."DocSubType" <> 'DN' 
+    and T0."DocDate" >= '20200101' --[%0] 
+    AND T0."DocDate" <= '20201231' --[%1] 
+    and T0."CANCELED" in ('N')
+    AND T2."InvntItem" = 'Y'
+    AND T2."frozenFor" = 'N'
+    AND T2."ItmsGrpCod" <> 134
+
+    GROUP BY TO_VARCHAR(T0."DocDate",'YYYY-MM'), T2."QryGroup1", T2."QryGroup2", T2."QryGroup3", T2."QryGroup4", T2."QryGroup8"
+    --, T2."ItemCode"
+
+    union all
+
+    --Notas de Crédito
+    SELECT   
+    TO_VARCHAR(T0."DocDate",'YYYY-MM') as "Mes",    
+    CASE WHEN T2."QryGroup8" = 'Y'
+    THEN 'KING'
+    WHEN T2."QryGroup4" = 'Y'
+    THEN 'CHINT'
+    WHEN T2."QryGroup2" = 'Y'
+    THEN 'INTECK'
+    WHEN T2."QryGroup1" = 'Y'
+    THEN 'MACROLED'
+    WHEN T2."QryGroup3" = 'Y'
+    THEN 'POWERSWITCH'
+    ELSE ''
+    END AS "Marca",
+    --T2."ItemCode" as "SKU",
+    SUM(T1."Quantity") as "Cantidad"
+
+    FROM ORIN T0   
+    INNER JOIN RIN1 T1 ON T0."DocEntry" = T1."DocEntry"  
+    INNER JOIN OITM T2 ON T1."ItemCode" = T2."ItemCode" 
+    INNER JOIN OITB T3 ON T2."ItmsGrpCod" = T3."ItmsGrpCod"
+
+    WHERE  
+    T0."DocDate" >= '20200101' --[%0] 
+    AND T0."DocDate" <= '20201231' --[%1] 
+    AND T0."CANCELED" in ('N')
+    AND T1."WhsCode" = 'DEVOLUC'
+    AND T2."InvntItem" = 'Y'
+    AND T2."frozenFor" = 'N'
+    AND T2."ItmsGrpCod" <> 134
+
+    GROUP BY TO_VARCHAR(T0."DocDate",'YYYY-MM'), T2."QryGroup1", T2."QryGroup2", T2."QryGroup3", T2."QryGroup4", T2."QryGroup8"
+--, T2."ItemCode"
+) VENTAS
+
+--COMPRAS
+INNER JOIN (
+    --FR
+    SELECT  
+    TO_VARCHAR(COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)),'YYYY-MM') as "Mes",
+    CASE WHEN T2."QryGroup8" = 'Y'
+    THEN 'KING'
+    WHEN T2."QryGroup4" = 'Y'
+    THEN 'CHINT'
+    WHEN T2."QryGroup2" = 'Y'
+    THEN 'INTECK'
+    WHEN T2."QryGroup1" = 'Y'
+    THEN 'MACROLED'
+    WHEN T2."QryGroup3" = 'Y'
+    THEN 'POWERSWITCH'
+    ELSE ''
+    END AS "Marca",
+    SUM(T1."Quantity") as "Cantidad"
+
+    FROM OPCH T0   
+    INNER JOIN PCH1 T1 ON T0."DocEntry" = T1."DocEntry"  
+    INNER JOIN OITM T2 ON T1."ItemCode" = T2."ItemCode" 
+
+    WHERE COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)) >= '20200101' --[%0] 
+    AND COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)) <= '20201231' --[%1] 
+    and T0."CANCELED" in ('N')
+    AND T0."isIns" = 'Y'
+    AND T2."InvntItem" = 'Y'
+    AND T2."frozenFor" = 'N'
+    AND T2."ItmsGrpCod" <> 134
+
+    GROUP BY TO_VARCHAR(COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)),'YYYY-MM'), T2."QryGroup1", T2."QryGroup2", T2."QryGroup3", T2."QryGroup4", T2."QryGroup8"
+
+    union all
+
+    --Pedidos
+    SELECT  
+    TO_VARCHAR(COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)),'YYYY-MM') as "Mes",
+    CASE WHEN T2."QryGroup8" = 'Y'
+    THEN 'KING'
+    WHEN T2."QryGroup4" = 'Y'
+    THEN 'CHINT'
+    WHEN T2."QryGroup2" = 'Y'
+    THEN 'INTECK'
+    WHEN T2."QryGroup1" = 'Y'
+    THEN 'MACROLED'
+    WHEN T2."QryGroup3" = 'Y'
+    THEN 'POWERSWITCH'
+    ELSE ''
+    END AS "Marca",
+    SUM(T1."OpenCreQty") as "Cantidad"
+
+    FROM OPOR T0   
+    INNER JOIN POR1 T1 ON T0."DocEntry" = T1."DocEntry" 
+    INNER JOIN OITM T2 ON T1."ItemCode" = T2."ItemCode" 
+
+    WHERE COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)) >= '20200101' --[%0] 
+    AND COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)) <= '20201231' --[%1]  
+    AND T0."CANCELED" = 'N'
+    AND T1."OpenCreQty" > 0
+    AND T2."frozenFor" = 'N'
+    AND T2."ItmsGrpCod" <> 134
+
+    GROUP BY TO_VARCHAR(COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)),'YYYY-MM'), T2."QryGroup1", T2."QryGroup2", T2."QryGroup3", T2."QryGroup4", T2."QryGroup8"
+
+    union all
+
+    --Ofertas de compra
+    SELECT        
+    TO_VARCHAR(COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)),'YYYY-MM') as "Mes",
+    CASE WHEN T2."QryGroup8" = 'Y'
+    THEN 'KING'
+    WHEN T2."QryGroup4" = 'Y'
+    THEN 'CHINT'
+    WHEN T2."QryGroup2" = 'Y'
+    THEN 'INTECK'
+    WHEN T2."QryGroup1" = 'Y'
+    THEN 'MACROLED'
+    WHEN T2."QryGroup3" = 'Y'
+    THEN 'POWERSWITCH'
+    ELSE ''
+    END AS "Marca",
+    SUM(T1."OpenCreQty") as "Cantidad"
+
+    FROM OPQT T0   
+    INNER JOIN PQT1 T1 ON T0."DocEntry" = T1."DocEntry" 
+    INNER JOIN OITM T2 ON T1."ItemCode" = T2."ItemCode" 
+
+    WHERE COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)) >= '20200101' --[%0] 
+    AND COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)) <= '20201231' --[%1] 
+    AND T0."CANCELED" = 'N'
+    AND T1."OpenCreQty" > 0
+    AND T2."InvntItem" = 'Y'
+    AND T2."frozenFor" = 'N'
+    AND T2."ItmsGrpCod" <> 134
+
+    GROUP BY TO_VARCHAR(COALESCE(T0."U_FECHA_CUTOFF", T0."U_FECHA_ETA", ADD_DAYS(T0."U_FECHA_EDT", 90)),'YYYY-MM'), T2."QryGroup1", T2."QryGroup2", T2."QryGroup3", T2."QryGroup4", T2."QryGroup8"
+
+) COMPRAS ON VENTAS."Mes" = COMPRAS."Mes" AND VENTAS."Marca" = COMPRAS."Marca" -- AND VENTAS."SKU" = COMPRAS."SKU"
+
+
+
+
+GROUP BY VENTAS."Mes", VENTAS."Marca"
+--, VENTAS."SKU"
+ORDER BY VENTAS."Mes", VENTAS."Marca"
